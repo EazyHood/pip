@@ -524,6 +524,21 @@ class Git(VersionControl):
         else:
             url, rev, user_pass = super().get_url_rev_and_auth(url)
 
+        if rev is not None and rev.startswith("-"):
+            # A revision is passed to git as a positional argument, e.g.
+            # ``git checkout <rev>``, ``git reset --hard <rev>`` or
+            # ``git show-ref <rev>``. A value beginning with "-" would instead
+            # be interpreted as a command-line option (argument injection). No
+            # legitimate git revision -- branch, tag, ref or commit hash --
+            # starts with "-", so reject it here. The Mercurial backend is
+            # already hardened against the same class of issue by wrapping the
+            # revision as ``--rev=<rev>`` (CVE-2023-5752).
+            raise InstallationError(
+                f"The git revision {rev!r} is invalid: a revision must not "
+                "begin with '-', which git would interpret as a command-line "
+                "option."
+            )
+
         return url, rev, user_pass
 
     @classmethod

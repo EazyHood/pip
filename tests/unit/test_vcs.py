@@ -453,6 +453,30 @@ def test_version_control__get_url_rev_and_auth__no_revision(url: str) -> None:
     assert "an empty revision (after @)" in str(excinfo.value)
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        # A leading dash would be interpreted by git as an option.
+        "git+https://github.com/MyUser/myProject.git@-rev",
+        "git+https://github.com/MyUser/myProject.git@--upload-pack=sh",
+        # The revision is percent-decoded before use, so an encoded dash
+        # must be rejected too.
+        "git+https://github.com/MyUser/myProject.git@%2Drev",
+    ],
+)
+def test_git__get_url_rev_and_auth__rejects_leading_dash(url: str) -> None:
+    """
+    A revision beginning with "-" would be interpreted by git as a
+    command-line option (argument injection) when passed to commands such as
+    ``git checkout``/``reset``/``show-ref``, so Git.get_url_rev_and_auth()
+    must reject it.
+    """
+    with pytest.raises(InstallationError) as excinfo:
+        Git.get_url_rev_and_auth(url)
+
+    assert "must not begin with '-'" in str(excinfo.value)
+
+
 @pytest.mark.parametrize("vcs_cls", [Bazaar, Git, Mercurial, Subversion])
 @pytest.mark.parametrize(
     "exc_cls, msg_re",
